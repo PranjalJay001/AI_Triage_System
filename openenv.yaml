@@ -1,0 +1,103 @@
+name: hospital-triage
+version: "1.0.0"
+description: >
+  Emergency Department (ED) Patient Triage OpenEnv environment.
+  An AI agent acts as a triage officer who must assess incoming patients,
+  assign correct triage categories (IMMEDIATE/URGENT/SEMI_URGENT/NON_URGENT),
+  allocate scarce hospital resources (ICU beds, ventilators, emergency beds),
+  and discharge stable patients — all while minimizing critical patient wait times.
+  Simulates a real-world, high-stakes medical task that directly maps to work
+  done by ED nurses in crowded hospitals worldwide.
+
+tags:
+  - openenv
+  - medical
+  - triage
+  - reinforcement-learning
+  - real-world
+  - healthcare
+
+author: "Hospital Triage OpenEnv"
+license: MIT
+
+tasks:
+  - name: easy_triage
+    description: "Triage 5 patients with clear-cut presentations. Abundant resources available."
+    difficulty: easy
+    max_steps: 15
+    n_patients: 5
+
+  - name: medium_triage
+    description: "Triage and allocate resources for 10 patients with mixed presentations under moderate resource constraints."
+    difficulty: medium
+    max_steps: 35
+    n_patients: 10
+
+  - name: hard_triage
+    description: "Mass casualty scenario: 15 patients, severe resource scarcity. Maximize lives saved."
+    difficulty: hard
+    max_steps: 50
+    n_patients: 15
+
+observation_space:
+  type: object
+  properties:
+    current_time: {type: number, description: "Episode time in minutes"}
+    waiting_patients: {type: array, description: "List of patients in the waiting queue"}
+    admitted_patients: {type: array, description: "List of admitted patients"}
+    available_resources: {type: object, description: "Map of resource_type -> count available"}
+    current_patient: {type: object, nullable: true, description: "Patient currently pending triage"}
+    last_action_result: {type: string}
+    last_action_error: {type: string, nullable: true}
+    queue_length: {type: integer}
+    avg_wait_time: {type: number}
+    critical_patients_waiting: {type: integer}
+    step_number: {type: integer}
+    task_name: {type: string}
+
+action_space:
+  type: object
+  properties:
+    action_type:
+      type: string
+      enum: [assign_triage, admit_to_bed, discharge, order_test, escalate, wait]
+    patient_id: {type: string, nullable: true}
+    triage_category:
+      type: string
+      nullable: true
+      enum: [immediate, urgent, semi_urgent, non_urgent, deceased]
+    resource_id: {type: string, nullable: true}
+    test_type: {type: string, nullable: true}
+    notes: {type: string, nullable: true}
+
+reward:
+  range: [-1.0, 1.0]
+  normalized_score_range: [0.0, 1.0]
+  components:
+    - name: triage_accuracy
+      description: "Reward for correctly matching patient to triage category"
+      range: [-0.10, 0.40]
+    - name: wait_time_penalty
+      description: "Penalty for critical patients waiting too long"
+      range: [-0.30, 0.00]
+    - name: resource_efficiency
+      description: "Reward for matching patient severity to appropriate resource type"
+      range: [-0.15, 0.30]
+    - name: throughput_bonus
+      description: "Reward for discharging stable patients to free capacity"
+      range: [-0.10, 0.20]
+    - name: deterioration_penalty
+      description: "Penalty when critical patients have been waiting dangerously long"
+      range: [-0.20, 0.00]
+
+api:
+  reset_endpoint: POST /reset
+  step_endpoint: POST /step
+  state_endpoint: GET /state
+  grade_endpoint: GET /grade
+
+environment:
+  docker: true
+  dockerfile: Dockerfile
+  port: 7860
+  framework: fastapi
